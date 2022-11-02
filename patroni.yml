@@ -1,0 +1,70 @@
+#scope: wsr     # This is the name of the Patroni-managed cluster
+#name: patroni1 # Name of the node, unique within the cluster
+
+# Patroni has a REST AP
+restapi:
+  listen: 0.0.0.0:8008
+  connect_address: 127.0.0.1:8008
+
+# The configuration to connect to the etcd cluster
+etcd:
+  hosts: etcd1:2379, etcd2:2379, etcd3:2379
+
+# These values are used when a Patroni cluster is created
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 1048576
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      parameters:
+        wal_level: replica
+        hot_standby: "on"
+        wal_keep_segments: 8
+        max_wal_senders: 5
+        max_replication_slots: 5
+        checkpoint_timeout: 30
+  
+  # When bootstrapping the first node of a cluster and the PostgreSQL data directory does not exist
+  initdb:
+  - encoding: UTF8
+  - data-checksums
+
+  pg_hba:
+  - host replication replicator 0.0.0.0/0 md5
+  - host all all 0.0.0.0/0 md5
+
+  users:
+    postgres:
+      password: P@ssw0rd
+      options:
+        - createrole
+        - createdb
+    replicator:
+      password: P@ssw0rd
+      options:
+        - replication
+
+postgresql:
+  listen: 0.0.0.0:5432
+  data_dir: "/var/lib/postgresql/data"
+  bin_dir: "/usr/lib/postgresql/14/bin"
+  pgpass: /tmp/pgpass0
+  authentication:
+    replication:
+      username: replicator
+      password: P@ssw0rd
+    superuser:
+      username: postgres
+      password: P@ssw0rd
+  parameters:
+    unix_socket_directories: '/var/run/postgresql/'
+
+tags:
+    nofailover: false
+    noloadbalance: false
+    clonefrom: false
+    nosync: false
